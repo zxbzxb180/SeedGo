@@ -1,0 +1,63 @@
+{
+  "name": "my-spider",
+  "concurrency": 5,
+  "log_level": "INFO",
+  "http_client": {
+    "timeout": 10,
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+  },
+  "schedule": [
+    {
+      "name": "seed-1",
+      "url": "https://www.example.com/seed1",
+      "method": "GET",
+      "headers": {
+        "Accept-Encoding": "gzip, deflate, br",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://www.example.com/"
+      },
+      "priority": 0,
+      "retry": 3,
+      "interval": 3600,
+      "tags": ["news", "entertainment"]
+    },
+    {
+      "name": "seed-2",
+      "url": "https://www.example.com/seed2",
+      "method": "POST",
+      "headers": {
+        "Accept-Encoding": "gzip, deflate, br",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://www.example.com/"
+      },
+      "body": {
+        "param1": "value1",
+        "param2": "value2"
+      },
+      "priority": 1,
+      "retry": 5,
+      "interval": 7200,
+      "tags": ["sports", "football"],
+      "business_type": "test2"
+    },
+    {
+      "name": "seed-3",
+      "url": "https://www.example.com/seed3",
+      "method": "POST",
+      "headers": {
+        "Accept-Encoding": "gzip, deflate, br",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://www.example.com/"
+      },
+      "body": {
+        "param1": "value1",
+        "param2": "value2"
+      },
+      "priority": 1,
+      "retry": 5,
+      "interval": 7200,
+      "tags": ["sports", "football"],
+      "business_type": "test3"
+    }
+  ]
+}
