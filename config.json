@@ -1,11 +1,8 @@
 {
   "name": "my-spider",
-  "concurrency": 5,
   "log_level": "INFO",
-  "http_client": {
-    "timeout": 10,
-    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-  },
+  "topic_name": "seed_queue",
+  "kafka_server": ["139.198.181.33:9092", "139.198.181.33:9093", "139.198.181.33:9094"],
   "schedule": [
     {
       "name": "seed-1",

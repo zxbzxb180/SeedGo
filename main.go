@@ -1,18 +1,20 @@
 package main
 
 import (
+	"SeedGo/logger"
 	"encoding/json"
 	"fmt"
-	"github.com/confluentinc/confluent-kafka-go/kafka"
+	"github.com/Shopify/sarama"
 	"github.com/robfig/cron/v3"
 	"io/ioutil"
-	"log"
 )
 
-type Config struct {
-	Name     string `json:"name"`
-	LogLevel string `json:"log_level"`
-	Schedule []struct {
+type SeedConfig struct {
+	Name        string   `json:"name"`
+	LogLevel    string   `json:"log_level"`
+	KafkaServer []string `json:"kafka_server"`
+	TopicName   string   `json:"topic_name"`
+	Schedule    []struct {
 		Name         string                 `json:"name"`
 		URL          string                 `json:"url"`
 		Method       string                 `json:"method"`
@@ -42,45 +44,27 @@ type Seed struct {
 }
 
 func main() {
-	log.Println("Starting...")
+	logger.Logger.Info("Starting...")
 
 	// 创建调度器
 	c := cron.New()
 	// 添加种子生成任务
 	spec := "* * * * *"
 	_, err := c.AddFunc(spec, func() {
-		log.Println("任务开始")
-
-		// 初始化 Kafka 生产者配置
-		producerConfig := &kafka.ConfigMap{
-			"bootstrap.servers":     "localhost:9092", // Kafka 服务器地址
-			"retries":               3,                // 自动重试次数
-			"retry.backoff.ms":      100,              // 重试时间间隔
-			"session.timeout.ms":    10000,            // 心跳超时时间
-			"heartbeat.interval.ms": 5000,             // 发送心跳消息的时间间隔
-		}
-
-		// 创建 Kafka 生产者
-		producer, err := kafka.NewProducer(producerConfig)
-		if err != nil {
-			fmt.Printf("Failed to create Kafka producer: %s\n", err)
-			return
-		}
-		defer producer.Close()
-
+		logger.Logger.Info("任务开始")
 		// 读取配置文件
 		configFile, err := ioutil.ReadFile("config.json")
 		if err != nil {
-			panic(err)
+			logger.Logger.Error(err)
 		}
-		var config Config
-		if err := json.Unmarshal(configFile, &config); err != nil {
-			panic(err)
+		var seedConfig SeedConfig
+		if err := json.Unmarshal(configFile, &seedConfig); err != nil {
+			logger.Logger.Error(fmt.Sprintf("Failed to unmarshal configFile: %v", err))
 		}
 
 		// 构造种子列表
 		var seeds []*Seed
-		for _, item := range config.Schedule {
+		for _, item := range seedConfig.Schedule {
 
 			seed := &Seed{
 				Name:         item.Name,
@@ -98,9 +82,41 @@ func main() {
 			seeds = append(seeds, seed)
 		}
 
-		// 输出种子列表
+		// 初始化 Kafka 生产者配置
+		kafkaConfig := sarama.NewConfig()
+		kafkaConfig.Producer.RequiredAcks = sarama.WaitForAll
+		kafkaConfig.Producer.Retry.Max = 5
+		kafkaConfig.Producer.Return.Successes = true
+
+		// 连接 Kafka 集群
+		kafkaServer := seedConfig.KafkaServer
+		producer, err := sarama.NewSyncProducer(kafkaServer, kafkaConfig)
+		if err != nil {
+			logger.Logger.Error(fmt.Sprintf("Failed to create producer: %v", err))
+		}
+		defer func() {
+			if err := producer.Close(); err != nil {
+				logger.Logger.Error(fmt.Sprintf("Failed to close producer: %v", err))
+			}
+		}()
+
+		topic := seedConfig.TopicName
+		// 推送种子到kafka队列
 		for _, seed := range seeds {
-			log.Printf("%+v\n", seed)
+			data, err := json.Marshal(seed)
+			if err != nil {
+				logger.Logger.Error("Failed to marshal seed")
+			}
+			msg := &sarama.ProducerMessage{
+				Topic: topic,
+				Value: sarama.StringEncoder(data),
+			}
+			partition, offset, err := producer.SendMessage(msg)
+			if err != nil {
+				logger.Logger.Error(fmt.Sprintf("Failed to send message: %v", err))
+			} else {
+				logger.Logger.Info(fmt.Sprintf("topic: %v, partition: %v, offset: %v", topic, partition, offset))
+			}
 		}
 	})
 	if err != nil {
