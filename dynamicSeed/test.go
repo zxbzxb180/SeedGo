@@ -1,4 +1,4 @@
-package DynamicSeed
+package dynamicSeed
 
 import "log"
 
