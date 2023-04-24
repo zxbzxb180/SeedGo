@@ -1,0 +1,10 @@
+FROM golang:1.18.3-alpine3.15
+
+ENV GO111MODULE=off
+
+WORKDIR /go/src/app
+COPY . .
+
+RUN go build -o app
+
+CMD [ "./app" ]
